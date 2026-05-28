@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Property {
+  id               String    @id @default(uuid())
+  address          String
+  city             String
+  state            String
+  county           String
+  zip              String
+  owner            String?
+  arv              Float?
+  askPrice         Float?
+  mortgageBalance  Float?
+  repairEstimate   Float?
+  primaryStrategy  String?
+  distressScore    Int
+  equityScore      Int
+  finalVerdict     String
+  confidence       String
+  followUpStatus   String    @default("new")
+  leadStage        String    @default("cold")
+  auctionDate      DateTime?
+  notes            String?
+  tags             String[]
+  analysisJson     Json
+  webFindings      Json?
+  offerHistory     Json?
+  actualNumbers    Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Buyer {
+  id             String   @id @default(uuid())
+  name           String
+  email          String?
+  phone          String?
+  zipCodes       String[]
+  minPrice       Float?
+  maxPrice       Float?
+  conditions     String[]
+  strategies     String[]
+  dealsCount     Int      @default(0)
+  lastDealDate   DateTime?
+  notes          String?
+  createdAt      DateTime @default(now())
+}
+
+model MappingProfile {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  mappings  Json
+  createdAt DateTime @default(now())
+}
