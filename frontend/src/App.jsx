@@ -9,6 +9,7 @@ import CRM from './pages/CRM.jsx'
 import Pipeline from './pages/Pipeline.jsx'
 import BuyersList from './pages/BuyersList.jsx'
 import AccuracyTracker from './pages/AccuracyTracker.jsx'
+import OutreachTemplates from './pages/OutreachTemplates.jsx'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/crm" element={<CRM />} />
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/buyers" element={<BuyersList />} />
+          <Route path="/outreach" element={<OutreachTemplates />} />
           <Route path="/accuracy" element={<AccuracyTracker />} />
         </Route>
       </Routes>

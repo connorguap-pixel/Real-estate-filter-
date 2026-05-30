@@ -125,6 +125,58 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export async function runMarketTrendSearch(zip, county, state) {
+  if (!ANTHROPIC_API_KEY) {
+    return { appreciation12mo: null, avgDaysOnMarket: null, activeListings: null, soldLast90: null, investorActivity: 'Unknown', note: 'API key not configured' };
+  }
+
+  const prompt = `Search for current real estate market trends in ZIP code ${zip}${county ? `, ${county} County` : ''}${state ? `, ${state}` : ''}.
+
+Find and return:
+1. 12-month home price appreciation or depreciation percentage
+2. Average days on market for recent sales
+3. Number of active listings vs. homes sold in last 90 days
+4. Overall investor activity level (Hot / Normal / Slow) based on cash sale volume and investor purchases
+
+Respond ONLY in valid JSON (no markdown):
+{
+  "appreciation12mo": number or null,
+  "avgDaysOnMarket": number or null,
+  "activeListings": number or null,
+  "soldLast90": number or null,
+  "investorActivity": "Hot" | "Normal" | "Slow" | "Unknown",
+  "note": string
+}`;
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 512,
+        system: 'You are a real estate market data researcher. Search for factual market data and respond in JSON only.',
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const textBlocks = (data.content || []).filter(b => b.type === 'text');
+    if (!textBlocks.length) throw new Error('No text');
+    let raw = textBlocks[textBlocks.length - 1].text;
+    raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    return JSON.parse(raw);
+  } catch {
+    return { appreciation12mo: null, avgDaysOnMarket: null, activeListings: null, soldLast90: null, investorActivity: 'Unknown', note: 'Could not retrieve market data' };
+  }
+}
+
 export async function runVerdictAnalysis(propertyData, calculatedScores) {
   if (!ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY not set, using fallback verdict');

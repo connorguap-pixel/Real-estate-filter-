@@ -14,6 +14,9 @@ import LegalDisclaimer from '../components/LegalDisclaimer.jsx'
 import AuctionCountdown from '../components/AuctionCountdown.jsx'
 import { calcRateSensitivity, calcBreakEvenRate } from '../lib/formulas.js'
 import { applyMappings } from '../lib/csvMapper.js'
+import MarketTrendOverlay from '../components/MarketTrendOverlay.jsx'
+import StateRulesCard from '../components/StateRulesCard.jsx'
+import OutreachTemplates from './OutreachTemplates.jsx'
 
 const CONDITION_OPTIONS = ['Turnkey', 'Good', 'Fair', 'Poor', 'Distressed', 'Needs Full Rehab']
 const PROPERTY_TYPES = ['SFR', 'Duplex', 'Triplex', 'Fourplex', 'Condo', 'Mobile Home', 'Commercial', 'Land']
@@ -85,6 +88,7 @@ export default function AnalyzeProperty() {
   const [autoMappings, setAutoMappings] = useState({})
   const [scoredLeads, setScoredLeads] = useState([])
   const [csvLoading, setCsvLoading] = useState(false)
+  const [showOutreach, setShowOutreach] = useState(false)
 
   function setField(k, v) { setForm(prev => ({ ...prev, [k]: v })) }
 
@@ -589,8 +593,37 @@ export default function AnalyzeProperty() {
             </div>
           )}
 
+          {/* Market Trend Overlay */}
+          {form.zip && (
+            <MarketTrendOverlay zip={form.zip} county={form.county} state={form.state} />
+          )}
+
+          {/* State-Specific Rules */}
+          {form.state && (
+            <StateRulesCard state={form.state} analysisType="both" />
+          )}
+
+          {/* Outreach Templates quick-launch */}
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div className="text-white font-semibold text-sm">Outreach Templates</div>
+              <div className="text-slate-400 text-xs">Generate a letter or SMS for this lead</div>
+            </div>
+            <button
+              onClick={() => setShowOutreach(true)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              Open Templates
+            </button>
+          </div>
+
           <LegalDisclaimer />
         </div>
+      )}
+
+      {/* Outreach modal */}
+      {showOutreach && (
+        <OutreachTemplates propertyData={form} onClose={() => setShowOutreach(false)} />
       )}
     </div>
   )

@@ -125,6 +125,28 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+// Market trend overlay — web search for ZIP-level data
+router.post('/market-trends', async (req, res, next) => {
+  try {
+    const { zip, county, state } = req.body;
+    if (!zip) return res.status(400).json({ error: 'zip required' });
+
+    const { runMarketTrendSearch } = await import('../services/anthropicClient.js');
+    const trends = await runMarketTrendSearch(zip, county, state);
+    res.json(trends);
+  } catch (err) {
+    // Return placeholder on error
+    res.json({
+      appreciation12mo: null,
+      avgDaysOnMarket: null,
+      activeListings: null,
+      soldLast90: null,
+      investorActivity: 'Unknown',
+      note: 'Market data unavailable — verify manually'
+    });
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const property = await prisma.property.findUnique({

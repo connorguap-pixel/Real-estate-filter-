@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Search, Zap, Users, KanbanSquare, BookUser, BarChart3, Menu, X, Building2 } from 'lucide-react'
+import { LayoutDashboard, Search, Zap, Users, KanbanSquare, BookUser, BarChart3, Mail, Menu, X, Building2 } from 'lucide-react'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/crm', icon: Users, label: 'CRM' },
   { to: '/pipeline', icon: KanbanSquare, label: 'Pipeline' },
   { to: '/buyers', icon: BookUser, label: 'Buyers List' },
+  { to: '/outreach', icon: Mail, label: 'Outreach Templates' },
   { to: '/accuracy', icon: BarChart3, label: 'Accuracy Tracker' },
 ]
 
