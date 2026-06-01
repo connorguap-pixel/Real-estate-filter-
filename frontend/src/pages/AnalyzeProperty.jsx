@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
-import { Upload, FileText, Cpu, Loader2, PlusCircle, X } from 'lucide-react'
+import { Upload, FileText, Cpu, Loader2, PlusCircle, X, Search } from 'lucide-react'
+import { AnalysisLoadingSkeleton } from '../components/LoadingSkeleton.jsx'
 import ScoreGauge from '../components/ScoreGauge.jsx'
 import RedFlagBadges from '../components/RedFlagBadges.jsx'
 import StrategyCard from '../components/StrategyCard.jsx'
@@ -47,7 +48,7 @@ const defaultForm = {
 function FormField({ label, children, hint }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-400 mb-1">{label}</label>
+      <label className="flex items-center text-xs font-medium text-slate-400 mb-1">{label}</label>
       {children}
       {hint && <p className="text-xs text-slate-600 mt-0.5">{hint}</p>}
     </div>
@@ -85,6 +86,8 @@ export default function AnalyzeProperty() {
   const [error, setError] = useState('')
   const [showRepairEstimator, setShowRepairEstimator] = useState(false)
   const [liens, setLiens] = useState([])
+  const [prefilling, setPrefilling] = useState(false)
+  const [webPrefilledFields, setWebPrefilledFields] = useState(new Set())
 
   // CSV tab state
   const [csvStep, setCsvStep] = useState('upload') // upload | map | results
@@ -96,6 +99,32 @@ export default function AnalyzeProperty() {
   const [showOutreach, setShowOutreach] = useState(false)
 
   function setField(k, v) { setForm(prev => ({ ...prev, [k]: v })) }
+
+  async function handlePrefill() {
+    if (!form.address) return
+    setPrefilling(true)
+    try {
+      const res = await axios.post('/api/analyze/prefill', {
+        address: form.address, city: form.city, state: form.state, zip: form.zip
+      })
+      const data = res.data
+      const filled = new Set()
+      const updates = {}
+      const fields = ['beds','baths','sqft','yearBuilt','estimatedAvm','owner','taxDelinquency','preforeclosure']
+      fields.forEach(f => {
+        if (data[f] !== null && data[f] !== undefined && !form[f]) {
+          updates[f] = data[f]
+          filled.add(f)
+        }
+      })
+      setForm(prev => ({ ...prev, ...updates }))
+      setWebPrefilledFields(filled)
+    } catch (err) {
+      console.error('Prefill failed', err)
+    } finally {
+      setPrefilling(false)
+    }
+  }
 
   function addLien() { setLiens(prev => [...prev, { type: 'HOA', amount: '' }]) }
   function removeLien(i) { setLiens(prev => prev.filter((_, idx) => idx !== i)) }
@@ -263,21 +292,31 @@ export default function AnalyzeProperty() {
               <FormField label="ZIP">
                 <input value={form.zip} onChange={e => setField('zip', e.target.value)} placeholder="33101" className={inputCls} />
               </FormField>
+              <div className="md:col-span-2">
+                <button
+                  onClick={handlePrefill}
+                  disabled={!form.address || prefilling}
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+                >
+                  {prefilling ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                  {prefilling ? 'Searching public records...' : 'Search Public Data'}
+                </button>
+              </div>
               <FormField label="Property Type">
                 <select value={form.propertyType} onChange={e => setField('propertyType', e.target.value)} className={selectCls}>
                   {PROPERTY_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
               </FormField>
-              <FormField label="Year Built">
+              <FormField label={<>Year Built{webPrefilledFields.has('yearBuilt') && <span className="ml-1 text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-mono">WEB</span>}</>}>
                 <input type="number" value={form.yearBuilt} onChange={e => setField('yearBuilt', e.target.value)} placeholder="1985" className={inputCls} />
               </FormField>
-              <FormField label="Beds">
+              <FormField label={<>Beds{webPrefilledFields.has('beds') && <span className="ml-1 text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-mono">WEB</span>}</>}>
                 <input type="number" value={form.beds} onChange={e => setField('beds', e.target.value)} placeholder="3" className={inputCls} />
               </FormField>
-              <FormField label="Baths">
+              <FormField label={<>Baths{webPrefilledFields.has('baths') && <span className="ml-1 text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-mono">WEB</span>}</>}>
                 <input type="number" value={form.baths} onChange={e => setField('baths', e.target.value)} placeholder="2" step="0.5" className={inputCls} />
               </FormField>
-              <FormField label="Sq Ft">
+              <FormField label={<>Sq Ft{webPrefilledFields.has('sqft') && <span className="ml-1 text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-mono">WEB</span>}</>}>
                 <input type="number" value={form.sqft} onChange={e => setField('sqft', e.target.value)} placeholder="1400" className={inputCls} />
               </FormField>
               <FormField label="Lot Size (acres)">
@@ -290,7 +329,7 @@ export default function AnalyzeProperty() {
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
             <h3 className="text-white font-semibold mb-4 text-sm">Owner Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="Owner Name">
+              <FormField label={<>Owner Name{webPrefilledFields.has('owner') && <span className="ml-1 text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-mono">WEB</span>}</>}>
                 <input value={form.owner} onChange={e => setField('owner', e.target.value)} placeholder="John Smith" className={inputCls} />
               </FormField>
               <FormField label="Mailing Address">
@@ -310,7 +349,7 @@ export default function AnalyzeProperty() {
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
             <h3 className="text-white font-semibold mb-4 text-sm">Financials</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="Estimated AVM (Zestimate)" hint="Will be web-verified — do not rely on this alone">
+              <FormField label={<>Estimated AVM (Zestimate){webPrefilledFields.has('estimatedAvm') && <span className="ml-1 text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-mono">WEB</span>}</>} hint="Will be web-verified — do not rely on this alone">
                 <input type="number" value={form.estimatedAvm} onChange={e => setField('estimatedAvm', e.target.value)} placeholder="250000" className={inputCls} />
               </FormField>
               <FormField label="Your ARV (After Repair Value) *" hint="Your own estimate based on comps">
@@ -358,7 +397,7 @@ export default function AnalyzeProperty() {
               <p className="text-xs text-yellow-400 mt-2">Total liens: ${totalLiens.toLocaleString()}</p>
             )}
             <div className="grid grid-cols-2 gap-4 mt-3">
-              <FormField label="Tax Delinquency ($)">
+              <FormField label={<>Tax Delinquency ($){webPrefilledFields.has('taxDelinquency') && <span className="ml-1 text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-mono">WEB</span>}</>}>
                 <input type="number" value={form.taxDelinquency} onChange={e => setField('taxDelinquency', e.target.value)} placeholder="0" className={inputCls} />
               </FormField>
               <FormField label="Judgment Amount ($)">
@@ -459,6 +498,8 @@ export default function AnalyzeProperty() {
               <><Cpu size={18} /> Run Full Analysis</>
             )}
           </button>
+
+          {loading && <AnalysisLoadingSkeleton />}
         </div>
       )}
 

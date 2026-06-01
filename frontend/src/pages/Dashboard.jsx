@@ -134,20 +134,24 @@ export default function Dashboard() {
         {loading ? (
           <div className="py-10 text-center text-slate-500 text-sm">Loading...</div>
         ) : recent.length === 0 ? (
-          <div className="py-10 text-center space-y-2">
-            <p className="text-slate-500 text-sm">No leads yet.</p>
-            <Link to="/analyze" className="text-blue-400 text-sm hover:text-blue-300">Analyze your first property →</Link>
-          </div>
+          <EmptyState
+            icon="🏠"
+            title="No leads yet"
+            description="Analyze your first distressed property to see it here."
+            actionLabel="Analyze a Property"
+            onAction={() => navigate('/analyze')}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-900/40">
                 <tr>
                   <th className="px-4 py-2.5 text-left text-xs text-slate-400 font-semibold">Address</th>
+                  <th className="px-4 py-2.5 text-left text-xs text-slate-400 font-semibold">Verdict</th>
                   <th className="px-4 py-2.5 text-left text-xs text-slate-400 font-semibold">Distress</th>
                   <th className="px-4 py-2.5 text-left text-xs text-slate-400 font-semibold">Equity</th>
-                  <th className="px-4 py-2.5 text-left text-xs text-slate-400 font-semibold">Verdict</th>
-                  <th className="px-4 py-2.5 text-left text-xs text-slate-400 font-semibold">Auction</th>
+                  <th className="px-4 py-2.5 text-left text-xs text-slate-400 font-semibold">Added</th>
+                  <th className="px-4 py-2.5 text-left text-xs text-slate-400 font-semibold"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
@@ -157,13 +161,20 @@ export default function Dashboard() {
                       <div className="text-white text-xs font-medium">{p.address}</div>
                       <div className="text-slate-500 text-xs">{p.city}, {p.state}</div>
                     </td>
-                    <td className="px-4 py-2.5 text-sm font-bold text-blue-400">{p.distressScore}</td>
-                    <td className="px-4 py-2.5 text-sm font-bold text-purple-400">{p.equityScore}</td>
                     <td className="px-4 py-2.5 text-xs font-medium">
-                      <span className={verdictColor(p.finalVerdict)}>{p.finalVerdict?.substring(0, 30)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        verdictColor(p.finalVerdict) === 'text-green-400' ? 'bg-green-900/30 text-green-400' :
+                        verdictColor(p.finalVerdict) === 'text-red-400' ? 'bg-red-900/30 text-red-400' :
+                        'bg-yellow-900/30 text-yellow-400'
+                      }`}>{p.finalVerdict?.substring(0, 25) || '—'}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-sm font-bold text-blue-400">{p.distressScore ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-sm font-bold text-purple-400">{p.equityScore ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">
+                      {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-2.5">
-                      {p.auctionDate ? <AuctionCountdown auctionDate={p.auctionDate} /> : <span className="text-slate-600 text-xs">—</span>}
+                      <Link to="/crm" className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium">View →</Link>
                     </td>
                   </tr>
                 ))}
