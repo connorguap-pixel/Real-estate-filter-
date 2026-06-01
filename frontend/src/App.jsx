@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
 import TermsModal from './components/TermsModal.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import AnalyzeProperty from './pages/AnalyzeProperty.jsx'
 import QuickAnalyze from './pages/QuickAnalyze.jsx'
@@ -13,6 +14,7 @@ import OutreachTemplates from './pages/OutreachTemplates.jsx'
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <TermsModal />
       <Routes>
@@ -28,5 +30,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }

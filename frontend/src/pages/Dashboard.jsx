@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Building2, Flame, Clock, TrendingUp, Search, Zap, Users, KanbanSquare, RefreshCw } from 'lucide-react'
 import AuctionCountdown from '../components/AuctionCountdown.jsx'
+import EmptyState from '../components/EmptyState.jsx'
 
 function StatCard({ icon: Icon, label, value, color = 'blue' }) {
   const colors = {
@@ -25,6 +26,7 @@ function StatCard({ icon: Icon, label, value, color = 'blue' }) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [properties, setProperties] = useState([])
   const [upcomingAuctions, setUpcomingAuctions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -47,8 +49,15 @@ export default function Dashboard() {
 
   useEffect(() => { fetchData() }, [])
 
-  const hotLeads = properties.filter(p => (p.distressScore + p.equityScore) >= 140)
-  const closedDeals = properties.filter(p => p.leadStage === 'closed')
+  const hotLeads = properties.filter(p => (p.distressScore || 0) >= 70)
+  const urgentAuctionCount = upcomingAuctions.filter(p => {
+    if (!p.auctionDate) return false
+    const days = Math.floor((new Date(p.auctionDate) - new Date()) / 86400000)
+    return days >= 0 && days <= 14
+  }).length
+  const avgEquityScore = properties.length > 0
+    ? Math.round(properties.reduce((s, p) => s + (p.equityScore || 0), 0) / properties.length)
+    : 0
   const recent = [...properties].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10)
 
   const verdictColor = (v = '') => {
@@ -74,9 +83,9 @@ export default function Dashboard() {
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={Building2} label="Total Leads" value={properties.length} color="blue" />
-        <StatCard icon={Flame} label="Hot Leads (≥140)" value={hotLeads.length} color="red" />
-        <StatCard icon={Clock} label="Urgent Auctions (≤14d)" value={upcomingAuctions.length} color="yellow" />
-        <StatCard icon={TrendingUp} label="Closed Deals" value={closedDeals.length} color="green" />
+        <StatCard icon={Flame} label="Hot Leads (Score ≥70)" value={hotLeads.length} color="red" />
+        <StatCard icon={Clock} label="Urgent Auctions (≤14d)" value={urgentAuctionCount} color="yellow" />
+        <StatCard icon={TrendingUp} label="Avg Equity Score" value={avgEquityScore} color="green" />
       </div>
 
       {/* Urgent auctions */}

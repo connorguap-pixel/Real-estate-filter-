@@ -45,6 +45,17 @@ function calcEquityScore(property) {
   return { score: Math.max(0, Math.min(100, Math.round(baseScore))), rawEquity, equityPct };
 }
 
+router.post('/prefill', async (req, res, next) => {
+  try {
+    const { address, city, state, zip } = req.body;
+    const { runPrefillSearch } = await import('../services/anthropicClient.js');
+    const data = await runPrefillSearch(address, city, state, zip);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/', async (req, res, next) => {
   try {
     const propertyData = req.body;

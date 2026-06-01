@@ -42,10 +42,17 @@ export async function sendAuctionAlert(property, daysUntilAuction) {
             <td style="padding: 8px; border-bottom: 1px solid #334155; color: #fbbf24;">${new Date(property.auctionDate).toLocaleDateString()}</td>
           </tr>
           <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #334155; color: #94a3b8;">Equity Score</td>
+            <td style="padding: 8px; border-bottom: 1px solid #334155;">${property.equityScore ?? 'N/A'}/100</td>
+          </tr>
+          <tr>
             <td style="padding: 8px; color: #94a3b8;">Final Verdict</td>
-            <td style="padding: 8px;">${property.finalVerdict}</td>
+            <td style="padding: 8px;">${property.finalVerdict ?? property.verdict ?? 'N/A'}</td>
           </tr>
         </table>
+        <div style="margin-top: 24px; text-align: center;">
+          <a href="${process.env.APP_URL || 'http://localhost:5173'}/analyze" style="background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">View Analysis</a>
+        </div>
         <p style="margin-top: 20px; color: #94a3b8; font-size: 12px;">Track DealOS Property Analyzer — For informational purposes only. Not financial or legal advice.</p>
       </div>
     </div>

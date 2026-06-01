@@ -125,6 +125,70 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export async function runPrefillSearch(address, city, state, zip) {
+  const nullResult = { beds: null, baths: null, sqft: null, yearBuilt: null, estimatedAvm: null, owner: null, lastSaleDate: null, lastSalePrice: null, taxDelinquency: null, preforeclosure: false, sources: [] };
+  if (!ANTHROPIC_API_KEY) return nullResult;
+
+  const fullAddress = [address, city, state, zip].filter(Boolean).join(', ');
+  const prompt = `Search public records and property databases for this address: ${fullAddress}
+
+Find and return the following information if available:
+1. Number of bedrooms
+2. Number of bathrooms
+3. Square footage
+4. Year built
+5. Estimated market value / AVM
+6. Current owner name (from tax records or public records)
+7. Last sale date
+8. Last sale price
+9. Tax delinquency amount (if any)
+10. Preforeclosure or foreclosure status
+
+Respond ONLY in valid JSON (no markdown fencing):
+{
+  "beds": number or null,
+  "baths": number or null,
+  "sqft": number or null,
+  "yearBuilt": number or null,
+  "estimatedAvm": number or null,
+  "owner": string or null,
+  "lastSaleDate": string or null,
+  "lastSalePrice": number or null,
+  "taxDelinquency": number or null,
+  "preforeclosure": boolean,
+  "sources": string[]
+}`;
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: 'You are a real estate data researcher. Search public records and property databases to find information about this property. Return only confirmed facts.',
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const textBlocks = (data.content || []).filter(b => b.type === 'text');
+    if (!textBlocks.length) return nullResult;
+    let raw = textBlocks[textBlocks.length - 1].text;
+    raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    const parsed = JSON.parse(raw);
+    return { ...nullResult, ...parsed };
+  } catch {
+    return nullResult;
+  }
+}
+
 export async function runMarketTrendSearch(zip, county, state) {
   if (!ANTHROPIC_API_KEY) {
     return { appreciation12mo: null, avgDaysOnMarket: null, activeListings: null, soldLast90: null, investorActivity: 'Unknown', note: 'API key not configured' };

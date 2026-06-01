@@ -17,6 +17,11 @@ import { applyMappings } from '../lib/csvMapper.js'
 import MarketTrendOverlay from '../components/MarketTrendOverlay.jsx'
 import StateRulesCard from '../components/StateRulesCard.jsx'
 import OutreachTemplates from './OutreachTemplates.jsx'
+import BuyerMatchCard from '../components/BuyerMatchCard.jsx'
+import ApiIntegrationCards from '../components/ApiIntegrationCards.jsx'
+import ForeclosureAnalysis from '../components/ForeclosureAnalysis.jsx'
+import SurplusFundsAnalysis from '../components/SurplusFundsAnalysis.jsx'
+import ProbateAnalysis from '../components/ProbateAnalysis.jsx'
 
 const CONDITION_OPTIONS = ['Turnkey', 'Good', 'Fair', 'Poor', 'Distressed', 'Needs Full Rehab']
 const PROPERTY_TYPES = ['SFR', 'Duplex', 'Triplex', 'Fourplex', 'Condo', 'Mobile Home', 'Commercial', 'Land']
@@ -223,10 +228,10 @@ export default function AnalyzeProperty() {
         ].map(({ key, icon: Icon, label }) => (
           <button
             key={key}
-            onClick={() => key !== 'api' && setTab(key)}
+            onClick={() => setTab(key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               tab === key ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-            } ${key === 'api' ? 'opacity-40 cursor-not-allowed' : ''}`}
+            }`}
           >
             <Icon size={14} />
             {label}
@@ -493,6 +498,11 @@ export default function AnalyzeProperty() {
         </div>
       )}
 
+      {/* API tab */}
+      {tab === 'api' && (
+        <ApiIntegrationCards />
+      )}
+
       {/* Results */}
       {result && tab === 'manual' && (
         <div className="space-y-5 pt-2">
@@ -566,6 +576,22 @@ export default function AnalyzeProperty() {
               <StrategyCard key={s} strategy={s} propertyData={form} />
             ))}
           </div>
+
+          {/* Buyer Auto-Match */}
+          <BuyerMatchCard propertyData={{ ...form, condition: form.propertyCondition }} />
+
+          {/* Foreclosure Analysis */}
+          {(form.preforeclosure || form.bankruptcy || form.auctionDate) && (
+            <ForeclosureAnalysis propertyData={{...form, allLiens: liens.reduce((s,l) => s + (parseFloat(l.amount)||0), 0)}} />
+          )}
+
+          {/* Surplus Funds Analysis */}
+          {parseFloat(form.finalSalePrice) > 0 && (
+            <SurplusFundsAnalysis propertyData={{...form, allLiens: liens.reduce((s,l) => s + (parseFloat(l.amount)||0), 0)}} />
+          )}
+
+          {/* Probate Analysis */}
+          <ProbateAnalysis propertyData={form} />
 
           {/* Web Research */}
           {result.web_findings && result.web_findings.length > 0 && (
