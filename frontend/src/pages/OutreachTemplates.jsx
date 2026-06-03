@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Mail, MessageSquare, Copy, Check, FileText, Users, Instagram, Linkedin } from 'lucide-react'
+import { Mail, MessageSquare, Copy, Check, FileText, Users, Instagram, Linkedin, ArrowLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 // ─── SELLER-FACING TEMPLATES ───────────────────────────────────────────────
 const SELLER_TEMPLATES = {
@@ -375,6 +376,7 @@ const CATEGORY_COLORS = {
 }
 
 export default function OutreachTemplates({ propertyData = {}, onClose }) {
+  const navigate = useNavigate()
   const [activeSection, setActiveSection] = useState('seller')
   const [selected, setSelected] = useState('preforeclosure')
   const [customized, setCustomized] = useState({})
@@ -426,8 +428,12 @@ export default function OutreachTemplates({ propertyData = {}, onClose }) {
               <span className="text-slate-400 text-sm">— {propertyData.address}</span>
             )}
           </div>
-          {onClose && (
+          {onClose ? (
             <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-xl leading-none">&times;</button>
+          ) : (
+            <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
+              <ArrowLeft size={15} /> Back
+            </button>
           )}
         </div>
 
