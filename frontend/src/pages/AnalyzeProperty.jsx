@@ -252,7 +252,7 @@ export default function AnalyzeProperty() {
       <div className="flex gap-1 bg-slate-800 border border-slate-700 p-1 rounded-xl w-fit">
         {[
           { key: 'manual', icon: FileText, label: 'Manual Entry' },
-          { key: 'csv', icon: Upload, label: 'CSV Upload' },
+          { key: 'csv', icon: Upload, label: 'File Upload' },
           { key: 'api', icon: Cpu, label: 'API (Coming Soon)' }
         ].map(({ key, icon: Icon, label }) => (
           <button
@@ -510,13 +510,32 @@ export default function AnalyzeProperty() {
             <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 text-center space-y-4">
               <Upload size={32} className="text-blue-400 mx-auto" />
               <div>
-                <h3 className="text-white font-semibold">Upload CSV Lead List</h3>
-                <p className="text-slate-400 text-sm mt-1">Accepts PropStream, BatchSkipTracing, ListSource, and most formats</p>
+                <h3 className="text-white font-semibold">Upload Lead List</h3>
+                <p className="text-slate-400 text-sm mt-1">Accepts PropStream, BatchSkipTracing, ListSource, and most export formats</p>
+              </div>
+              {/* Supported formats grid */}
+              <div className="flex flex-wrap justify-center gap-2">
+                {[
+                  { ext: 'CSV', color: 'bg-green-900/40 text-green-300 border-green-700' },
+                  { ext: 'XLSX', color: 'bg-blue-900/40 text-blue-300 border-blue-700' },
+                  { ext: 'XLS', color: 'bg-blue-900/40 text-blue-300 border-blue-700' },
+                  { ext: 'PDF', color: 'bg-red-900/40 text-red-300 border-red-700' },
+                  { ext: 'HTML', color: 'bg-orange-900/40 text-orange-300 border-orange-700' },
+                  { ext: 'TSV', color: 'bg-purple-900/40 text-purple-300 border-purple-700' },
+                ].map(f => (
+                  <span key={f.ext} className={`text-xs px-2 py-0.5 rounded border font-mono font-semibold ${f.color}`}>{f.ext}</span>
+                ))}
               </div>
               <label className="inline-block cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors">
-                {csvLoading ? 'Uploading...' : 'Choose CSV File'}
-                <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
+                {csvLoading ? 'Processing...' : 'Choose File'}
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls,.ods,.pdf,.html,.htm,.tsv"
+                  onChange={handleCSVUpload}
+                  className="hidden"
+                />
               </label>
+              <p className="text-slate-600 text-xs">Max 10MB · Up to 1,000 rows processed</p>
               {error && <p className="text-red-400 text-sm">{error}</p>}
             </div>
           )}

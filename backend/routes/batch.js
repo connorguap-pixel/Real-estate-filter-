@@ -1,5 +1,8 @@
 import express from 'express';
 import multer from 'multer';
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+import * as XLSX from 'xlsx';
+import * as cheerio from 'cheerio';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -101,39 +104,179 @@ router.post('/score', async (req, res, next) => {
   }
 });
 
+// ─── File parsers ────────────────────────────────────────────────────────────
+
+function parseCSVBuffer(buffer) {
+  const content = buffer.toString('utf-8');
+  const lines = content.split('\n').filter(l => l.trim());
+  if (lines.length < 2) throw new Error('File has fewer than 2 rows');
+
+  const parseCSVLine = (line) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (const char of line) {
+      if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+      else current += char;
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const headers = parseCSVLine(lines[0]);
+  const rows = lines.slice(1).map(line => {
+    const values = parseCSVLine(line);
+    const row = {};
+    headers.forEach((h, i) => { row[h] = values[i] || ''; });
+    return row;
+  }).filter(row => Object.values(row).some(v => v));
+  return { headers, rows };
+}
+
+function parseExcelBuffer(buffer) {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  if (!raw.length) throw new Error('Spreadsheet appears empty');
+  const headers = Object.keys(raw[0]);
+  const rows = raw.map(r => {
+    const row = {};
+    headers.forEach(h => { row[h] = String(r[h] ?? ''); });
+    return row;
+  });
+  return { headers, rows };
+}
+
+async function parsePDFBuffer(buffer) {
+  const data = await pdfParse(buffer);
+  const text = data.text;
+
+  // Try to find a table-like structure: lines with consistent delimiters
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Detect separator — tab, pipe, or multiple spaces
+  const detectSep = (line) => {
+    if (line.includes('\t')) return '\t';
+    if (line.includes('|')) return '|';
+    // multiple spaces (2+)
+    if (/  +/.test(line)) return 'SPACES';
+    return null;
+  };
+
+  const sep = detectSep(lines[0]) || detectSep(lines[1]);
+
+  let headers, rows;
+  if (sep && sep !== 'SPACES') {
+    headers = lines[0].split(sep).map(h => h.trim()).filter(Boolean);
+    rows = lines.slice(1).map(line => {
+      const vals = line.split(sep).map(v => v.trim());
+      const row = {};
+      headers.forEach((h, i) => { row[h] = vals[i] || ''; });
+      return row;
+    }).filter(row => Object.values(row).some(v => v));
+  } else if (sep === 'SPACES') {
+    headers = lines[0].split(/  +/).map(h => h.trim()).filter(Boolean);
+    rows = lines.slice(1).map(line => {
+      const vals = line.split(/  +/).map(v => v.trim());
+      const row = {};
+      headers.forEach((h, i) => { row[h] = vals[i] || ''; });
+      return row;
+    }).filter(row => Object.values(row).some(v => v));
+  } else {
+    // Unstructured PDF — return as a single "notes" column
+    headers = ['Raw Text'];
+    rows = lines.map(line => ({ 'Raw Text': line }));
+  }
+
+  return { headers, rows, pdfText: text.slice(0, 2000) };
+}
+
+function parseHTMLBuffer(buffer) {
+  const html = buffer.toString('utf-8');
+  const $ = cheerio.load(html);
+
+  // Find the first table
+  const table = $('table').first();
+  if (!table.length) {
+    // No table — extract visible text as raw rows
+    const text = $('body').text().split('\n').map(l => l.trim()).filter(Boolean);
+    return { headers: ['Raw Text'], rows: text.map(t => ({ 'Raw Text': t })) };
+  }
+
+  const headers = [];
+  table.find('tr').first().find('th, td').each((_, el) => {
+    headers.push($(el).text().trim());
+  });
+
+  const rows = [];
+  table.find('tr').slice(1).each((_, tr) => {
+    const row = {};
+    $(tr).find('td').each((i, td) => {
+      row[headers[i] || `col_${i}`] = $(td).text().trim();
+    });
+    if (Object.values(row).some(v => v)) rows.push(row);
+  });
+
+  return { headers, rows };
+}
+
+// ─── Upload route ─────────────────────────────────────────────────────────────
+
 router.post('/upload', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    const content = req.file.buffer.toString('utf-8');
-    const lines = content.split('\n').filter(l => l.trim());
-    if (lines.length < 2) return res.status(400).json({ error: 'CSV too short' });
+    const { originalname, buffer, mimetype } = req.file;
+    const ext = originalname.split('.').pop().toLowerCase();
 
-    // Simple CSV parser
-    const parseCSVLine = (line) => {
-      const result = [];
-      let current = '';
-      let inQuotes = false;
-      for (const char of line) {
-        if (char === '"') inQuotes = !inQuotes;
-        else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
-        else current += char;
-      }
-      result.push(current.trim());
-      return result;
-    };
+    let parsed;
+    let fileType = ext.toUpperCase();
 
-    const headers = parseCSVLine(lines[0]);
-    const rows = lines.slice(1).map(line => {
-      const values = parseCSVLine(line);
-      const row = {};
-      headers.forEach((h, i) => { row[h] = values[i] || ''; });
-      return row;
-    }).filter(row => Object.values(row).some(v => v));
+    if (ext === 'csv' || mimetype === 'text/csv') {
+      parsed = parseCSVBuffer(buffer);
+    } else if (['xlsx', 'xls', 'ods'].includes(ext) || mimetype.includes('spreadsheet') || mimetype.includes('excel')) {
+      parsed = parseExcelBuffer(buffer);
+    } else if (ext === 'pdf' || mimetype === 'application/pdf') {
+      parsed = await parsePDFBuffer(buffer);
+      fileType = 'PDF';
+    } else if (['html', 'htm'].includes(ext) || mimetype === 'text/html') {
+      parsed = parseHTMLBuffer(buffer);
+      fileType = 'HTML';
+    } else if (ext === 'tsv' || mimetype === 'text/tab-separated-values') {
+      // TSV — treat like CSV but comma→tab
+      const content = buffer.toString('utf-8');
+      const lines = content.split('\n').filter(l => l.trim());
+      const headers = lines[0].split('\t').map(h => h.trim());
+      const rows = lines.slice(1).map(line => {
+        const vals = line.split('\t');
+        const row = {};
+        headers.forEach((h, i) => { row[h] = vals[i]?.trim() || ''; });
+        return row;
+      }).filter(row => Object.values(row).some(v => v));
+      parsed = { headers, rows };
+      fileType = 'TSV';
+    } else {
+      return res.status(400).json({
+        error: `Unsupported file type: .${ext}. Supported: CSV, XLSX, XLS, PDF, HTML, TSV`
+      });
+    }
+
+    const { headers, rows, pdfText } = parsed;
+    if (!headers?.length) return res.status(400).json({ error: 'Could not detect column headers in file' });
 
     const autoMappings = autoMapColumns(headers);
 
-    res.json({ success: true, headers, rows: rows.slice(0, 1000), autoMappings, totalRows: rows.length });
+    res.json({
+      success: true,
+      fileType,
+      headers,
+      rows: rows.slice(0, 1000),
+      autoMappings,
+      totalRows: rows.length,
+      ...(pdfText ? { pdfPreview: pdfText } : {})
+    });
   } catch (err) {
     next(err);
   }
